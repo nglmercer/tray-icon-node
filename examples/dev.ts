@@ -9,6 +9,7 @@ import {
   pollMenuEvents,
   Icon,
   initialize,
+  update,
 } from "../index.js";
 
 // Create a simple red icon (32x32)
@@ -56,10 +57,22 @@ async function main() {
     
     const submenu = subMenuBuilder.build();
     
-    // Note: In the current Rust implementation, Submenu doesn't expose append/prepend methods directly
-    // in the binding wrapper yet (Menu has them). 
-    // If we wanted a fully populated submenu, we'd need to add those bindings to src/menu.rs.
-    // For now, we will add the submenu to the main menu as is (empty).
+    const subItem1 = new MenuItemBuilder()
+      .withText("Sub Item 1")
+      .withId("sub1")
+      .build();
+
+    submenu.appendMenuItem(subItem1);
+    
+    submenu.appendPredefinedMenuItem(PredefinedMenuItem.separator());
+
+    const subItem2 = new CheckMenuItemBuilder()
+        .withText("Sub Check")
+        .withChecked(true)
+        .withId("sub2")
+        .build();
+    
+    submenu.appendCheckMenuItem(subItem2);
 
   // Assemble menu
   menu.appendMenuItem(helloItem);
@@ -75,20 +88,26 @@ async function main() {
     .withTooltip("NAPI Tray Icon")
     .withIcon(icon)
     .withMenu(menu)
-    .build();
+    .build(); 
 
-  console.log("Tray icon created. Check your system tray!");
+    console.log({ tray });
 
   // Event loop
   // In a real Node app (e.g. Electron or persistent script), you'd have an event loop or similar.
   // Here we simulate one with polling.
   
+  // Initial update to ensure everything is settled
+  update();
+
   let running = true;
   while (running) {
+    // Process system events (required for Linux/GTK)
+    update();
+
     // Poll tray events
     const trayEvent = pollTrayEvents();
     if (trayEvent) {
-      console.log("Tray Event:", trayEvent);
+      console.log("Tray icon created. Check your system tray!", {tray, trayEvent});
     }
 
     // Poll menu events
@@ -107,11 +126,17 @@ async function main() {
         case "notifications":
             console.log("Toggled notifications (logic not implemented)");
             break;
+        case "sub1":
+            console.log("Sub Item 1 clicked!");
+            break;
+        case "sub2":
+            console.log("Sub Check clicked!");
+            break;
       }
     }
 
-    // Sleep briefly to prevent high CPU usage in this tight loop
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Process events at ~60fps to match UI refresh rates and prevent DBus timeouts
+    await new Promise((resolve) => setTimeout(resolve, 16));
   }
 }
 

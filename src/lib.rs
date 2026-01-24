@@ -21,3 +21,13 @@ pub fn initialize() -> Result<()> {
     }
     Ok(())
 }
+
+#[napi]
+pub fn update() {
+    #[cfg(target_os = "linux")]
+    {
+        while gtk::events_pending() {
+            gtk::main_iteration_do(false);
+        }
+    }
+}

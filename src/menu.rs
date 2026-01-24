@@ -192,6 +192,44 @@ impl Default for CheckMenuItemBuilder {
 pub struct Submenu(pub(crate) tray_menu::Submenu);
 
 #[napi]
+impl Submenu {
+    #[napi]
+    pub fn append_menu_item(&self, item: &MenuItem) -> Result<()> {
+        self.0
+            .append(&item.0)
+            .map_err(|e| Error::from_reason(format!("{}", e)))
+    }
+
+    #[napi]
+    pub fn append_submenu(&self, item: &Submenu) -> Result<()> {
+        self.0
+            .append(&item.0)
+            .map_err(|e| Error::from_reason(format!("{}", e)))
+    }
+
+    #[napi]
+    pub fn append_check_menu_item(&self, item: &CheckMenuItem) -> Result<()> {
+        self.0
+            .append(&item.0)
+            .map_err(|e| Error::from_reason(format!("{}", e)))
+    }
+
+    #[napi]
+    pub fn append_icon_menu_item(&self, item: &IconMenuItem) -> Result<()> {
+        self.0
+            .append(&item.0)
+            .map_err(|e| Error::from_reason(format!("{}", e)))
+    }
+
+    #[napi]
+    pub fn append_predefined_menu_item(&self, item: &PredefinedMenuItem) -> Result<()> {
+        self.0
+            .append(&item.0)
+            .map_err(|e| Error::from_reason(format!("{}", e)))
+    }
+}
+
+#[napi]
 #[derive(Clone)]
 pub struct SubmenuBuilder {
     text: String,

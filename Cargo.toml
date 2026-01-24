@@ -18,8 +18,8 @@ targets = [
 ]
 
 [dependencies]
-napi = { version = "2.12.2", features = ["napi9", "async"] }
-napi-derive = "2.12.2"
+napi = { version = "3.8.2", features = ["napi9", "async"] }
+napi-derive = "3.5.1"
 tray-icon = { version = "0.21.3" }
 tokio = { version = "1", features = ["full"] }
 image = "0.25"
