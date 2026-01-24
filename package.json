@@ -1,6 +1,6 @@
 {
-  "name": "napi-template-bun",
-  "version": "1.0.0",
+  "name": "tray-icon-node",
+  "version": "0.1.0",
   "description": "Template for NAPI (Node-API) native addons with Bun runtime",
   "keywords": [
     "napi",
@@ -55,7 +55,7 @@
     "bun": ">=1.0.0"
   },
   "napi": {
-    "binaryName": "template",
+    "binaryName": "tray-icon-node",
     "targets": [
       "x86_64-pc-windows-msvc",
       "i686-pc-windows-msvc",
