@@ -1,7 +1,6 @@
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 
-
 #[napi]
 #[derive(Clone)]
 pub struct Icon {

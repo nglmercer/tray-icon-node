@@ -1,6 +1,5 @@
 use napi_derive::napi;
 
-
 #[napi(object)]
 #[derive(Debug, Clone, Copy)]
 pub struct Rect {

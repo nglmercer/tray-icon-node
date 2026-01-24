@@ -129,7 +129,7 @@ impl TrayIcon {
     #[napi]
     pub fn set_title(&mut self, title: Option<String>) -> Result<()> {
         if let Some(tray) = &self.0 {
-            let _ = tray.set_title(title);
+            tray.set_title(title);
         }
         Ok(())
     }
@@ -208,5 +208,11 @@ impl TrayIconBuilder {
             .build()
             .map_err(|e| Error::from_reason(format!("Failed to build tray icon: {}", e)))?;
         Ok(TrayIcon(Some(tray)))
+    }
+}
+
+impl Default for TrayIconBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }

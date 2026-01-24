@@ -49,6 +49,12 @@ impl Menu {
     }
 }
 
+impl Default for Menu {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[napi]
 pub struct MenuItem(pub(crate) tray_menu::MenuItem);
 
@@ -102,6 +108,12 @@ impl MenuItemBuilder {
             tray_menu::MenuItem::new(&self.text, self.enabled, None)
         };
         Ok(MenuItem(item))
+    }
+}
+
+impl Default for MenuItemBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -170,6 +182,12 @@ impl CheckMenuItemBuilder {
     }
 }
 
+impl Default for CheckMenuItemBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[napi]
 pub struct Submenu(pub(crate) tray_menu::Submenu);
 
@@ -205,6 +223,12 @@ impl SubmenuBuilder {
     #[napi]
     pub fn build(&self) -> Result<Submenu> {
         Ok(Submenu(tray_menu::Submenu::new(&self.text, self.enabled)))
+    }
+}
+
+impl Default for SubmenuBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -287,6 +311,12 @@ impl IconMenuItemBuilder {
             tray_menu::IconMenuItem::new(&self.text, self.enabled, Some(icon), None)
         };
         Ok(IconMenuItem(item))
+    }
+}
+
+impl Default for IconMenuItemBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -394,5 +424,11 @@ impl AboutMetadataBuilder {
             website_label: self.website_label.clone(),
             comments: self.comments.clone(),
         }
+    }
+}
+
+impl Default for AboutMetadataBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }
