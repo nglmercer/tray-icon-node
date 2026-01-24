@@ -1,51 +1,117 @@
 use crate::icon::Icon;
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use tray_icon::menu as tray_menu;
 
+pub enum AnyMenuItem {
+    Standard(tray_menu::MenuItem),
+    Check(tray_menu::CheckMenuItem),
+    Icon(tray_menu::IconMenuItem),
+    Submenu(tray_menu::Submenu),
+}
+
+unsafe impl Send for AnyMenuItem {}
+unsafe impl Sync for AnyMenuItem {}
+
 #[napi]
-pub struct Menu(pub(crate) tray_menu::Menu);
+pub struct Menu {
+    pub(crate) inner: tray_menu::Menu,
+    pub(crate) registry: Arc<Mutex<HashMap<String, AnyMenuItem>>>,
+}
 
 #[napi]
 impl Menu {
     #[napi(constructor)]
     pub fn new() -> Self {
-        Self(tray_menu::Menu::new())
+        Self {
+            inner: tray_menu::Menu::new(),
+            registry: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+    fn register(&self, id: String, item: AnyMenuItem) {
+        let mut reg = self.registry.lock().unwrap();
+        reg.insert(id, item);
+    }
+    #[napi]
+    pub fn append_check_menu_item(&self, item: &CheckMenuItem, id: String) -> Result<()> {
+        self.inner
+            .append(&item.0)
+            .map_err(|e| Error::from_reason(format!("{}", e)))?;
+
+        self.register(id, AnyMenuItem::Check(item.0.clone()));
+        Ok(())
+    }
+    #[napi]
+    pub fn append_menu_item(&self, item: &MenuItem, id: Option<String>) -> Result<()> {
+        self.inner
+            .append(&item.0)
+            .map_err(|e| Error::from_reason(format!("{}", e)))?;
+
+        if let Some(id_str) = id {
+            self.register(id_str, AnyMenuItem::Standard(item.0.clone()));
+        }
+        Ok(())
+    }
+    #[napi]
+    pub fn append_submenu(&self, item: &Submenu, id: Option<String>) -> Result<()> {
+        self.inner
+            .append(&item.0)
+            .map_err(|e| Error::from_reason(format!("{}", e)))?;
+
+        if let Some(id_str) = id {
+            self.register(id_str, AnyMenuItem::Submenu(item.0.clone()));
+        }
+        Ok(())
     }
 
     #[napi]
-    pub fn append_menu_item(&self, item: &MenuItem) -> Result<()> {
-        self.0
+    pub fn append_icon_menu_item(&self, item: &IconMenuItem, id: String) -> Result<()> {
+        self.inner
             .append(&item.0)
-            .map_err(|e| Error::from_reason(format!("{}", e)))
-    }
+            .map_err(|e| Error::from_reason(format!("{}", e)))?;
 
-    #[napi]
-    pub fn append_submenu(&self, item: &Submenu) -> Result<()> {
-        self.0
-            .append(&item.0)
-            .map_err(|e| Error::from_reason(format!("{}", e)))
-    }
-
-    #[napi]
-    pub fn append_check_menu_item(&self, item: &CheckMenuItem) -> Result<()> {
-        self.0
-            .append(&item.0)
-            .map_err(|e| Error::from_reason(format!("{}", e)))
-    }
-
-    #[napi]
-    pub fn append_icon_menu_item(&self, item: &IconMenuItem) -> Result<()> {
-        self.0
-            .append(&item.0)
-            .map_err(|e| Error::from_reason(format!("{}", e)))
+        self.register(id, AnyMenuItem::Icon(item.0.clone()));
+        Ok(())
     }
 
     #[napi]
     pub fn append_predefined_menu_item(&self, item: &PredefinedMenuItem) -> Result<()> {
-        self.0
+        self.inner
             .append(&item.0)
             .map_err(|e| Error::from_reason(format!("{}", e)))
+    }
+    #[napi]
+    pub fn is_checked(&self, id: String) -> bool {
+        let reg = self.registry.lock().unwrap();
+        if let Some(AnyMenuItem::Check(item)) = reg.get(&id) {
+            return item.is_checked();
+        }
+        false
+    }
+    #[napi]
+    pub fn toggle_check(&self, id: String) -> bool {
+        let reg = self.registry.lock().unwrap();
+        if let Some(AnyMenuItem::Check(item)) = reg.get(&id) {
+            let new_state = !item.is_checked();
+            item.set_checked(new_state);
+            return new_state;
+        }
+        false
+    }
+
+    #[napi]
+    pub fn set_text(&self, id: String, text: String) {
+        let reg = self.registry.lock().unwrap();
+        if let Some(any_item) = reg.get(&id) {
+            match any_item {
+                AnyMenuItem::Standard(i) => i.set_text(text),
+                AnyMenuItem::Check(i) => i.set_text(text),
+                AnyMenuItem::Icon(i) => i.set_text(text),
+                AnyMenuItem::Submenu(i) => i.set_text(text),
+            }
+        }
     }
 }
 
@@ -57,6 +123,19 @@ impl Default for Menu {
 
 #[napi]
 pub struct MenuItem(pub(crate) tray_menu::MenuItem);
+
+#[napi]
+impl CheckMenuItem {
+    #[napi]
+    pub fn is_checked(&self) -> bool {
+        self.0.is_checked()
+    }
+
+    #[napi]
+    pub fn set_checked(&self, checked: bool) {
+        self.0.set_checked(checked);
+    }
+}
 
 #[napi]
 #[derive(Clone)]

@@ -58,7 +58,7 @@ export function createTrayMenu() {
 
   // Build the main menu structure
   menu.appendMenuItem(helloItem);
-  menu.appendCheckMenuItem(toggleItem); // Append the checkbox
+  menu.appendCheckMenuItem(toggleItem,"toggle_notif"); // Append the checkbox
   menu.appendSubmenu(subMenu);
   menu.appendPredefinedMenuItem(PredefinedMenuItem.separator());
   
@@ -67,8 +67,7 @@ export function createTrayMenu() {
     .withId("quit")
     .build();
   menu.appendMenuItem(quitItem);
-
-  return menu;
+  return {menu,subMenu,toggleItem,helloItem};
 }
 
 // Global reference to prevent Garbage Collection
@@ -78,7 +77,7 @@ let isRunning = true;
 /**
  * Handles incoming events from the tray and menu.
  */
-function handleEvents() {
+function handleEvents(menu: Menu) {
   const trayEvent = pollTrayEvents();
   if (trayEvent && trayEvent.eventType) {
   //  console.log(trayEvent.eventType);
@@ -86,7 +85,7 @@ function handleEvents() {
 
   const menuEvent = pollMenuEvents();
   if (menuEvent) {
-    console.log("Menu Event:", menuEvent.id);
+    console.log("Menu Event:", menuEvent);
     
     if (menuEvent.id === "hello") {
       console.log("Hello there!");
@@ -95,6 +94,9 @@ function handleEvents() {
     if (menuEvent.id === "quit") {
       isRunning = false;
     }
+    const currentlyChecked = menu.isChecked("toggle_notif");
+    menu.setText("toggle_notif", "Notifications: " + currentlyChecked);
+    console.log({currentlyChecked})
   }
 }
 
@@ -104,7 +106,7 @@ async function startApp() {
   initialize();
 
   const icon = Icon.fromRgba(generateIconData(), 32, 32);
-  const menu = createTrayMenu();
+  const {menu} = createTrayMenu();
 
   tray = new TrayIconBuilder()
     .withTitle("My App")
@@ -118,7 +120,7 @@ async function startApp() {
   // Main Event Loop
   while (isRunning) {
     update();       // Process Windows messages (via Rust)
-    handleEvents();  // Process internal event queues
+    handleEvents(menu);  // Process internal event queues
     
     // Small delay to prevent high CPU usage (~30 FPS)
     await new Promise((resolve) => setTimeout(resolve, 32));

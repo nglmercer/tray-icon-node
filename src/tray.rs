@@ -184,7 +184,7 @@ impl TrayIconBuilder {
 
     #[napi]
     pub fn with_menu(&mut self, menu: &Menu) -> TrayIconBuilder {
-        self.menu = Some(menu.0.clone());
+        self.menu = Some(menu.inner.clone());
         self.clone()
     }
 
