@@ -1,5 +1,6 @@
 import { 
   TrayIconBuilder, 
+  CheckMenuItemBuilder,
   pollTrayEvents, 
   pollMenuEvents, 
   Icon, 
@@ -24,16 +25,20 @@ export function generateIconData() {
 export function createTrayMenu() {
   const menu = new Menu();
 
+  // 1. Standard Item
   const helloItem = new MenuItemBuilder()
     .withText("Say Hello")
     .withId("hello")
     .build();
 
-  const quitItem = new MenuItemBuilder()
-    .withText("Exit")
-    .withId("quit")
+  // 2. Checkbox Item in the Main Menu
+  const toggleItem = new CheckMenuItemBuilder()
+    .withText("Notifications Enabled")
+    .withId("toggle_notif")
+    .withChecked(true) // Initial state
     .build();
 
+  // 3. Submenu with a Checkbox inside
   const subMenu = new SubmenuBuilder()
     .withText("More Options")
     .build();
@@ -42,9 +47,25 @@ export function createTrayMenu() {
     new MenuItemBuilder().withText("Sub Item 1").withId("sub1").build()
   );
 
+  // Adding a checkbox to the SUBMENU
+  subMenu.appendCheckMenuItem(
+    new CheckMenuItemBuilder()
+      .withText("Enable Turbo Mode")
+      .withId("turbo_mode")
+      .withChecked(false)
+      .build()
+  );
+
+  // Build the main menu structure
   menu.appendMenuItem(helloItem);
+  menu.appendCheckMenuItem(toggleItem); // Append the checkbox
   menu.appendSubmenu(subMenu);
   menu.appendPredefinedMenuItem(PredefinedMenuItem.separator());
+  
+  const quitItem = new MenuItemBuilder()
+    .withText("Exit")
+    .withId("quit")
+    .build();
   menu.appendMenuItem(quitItem);
 
   return menu;
