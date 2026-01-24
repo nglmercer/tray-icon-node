@@ -30,4 +30,19 @@ pub fn update() {
             gtk::main_iteration_do(false);
         }
     }
+
+    #[cfg(target_os = "windows")]
+    {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{
+            DispatchMessageW, PeekMessageW, TranslateMessage, MSG, PM_REMOVE,
+        };
+        unsafe {
+            let mut msg: MSG = std::mem::zeroed();
+            // Procesa todos los mensajes pendientes en la cola de Windows
+            while PeekMessageW(&mut msg, 0, 0, 0, PM_REMOVE) != 0 {
+                TranslateMessage(&msg);
+                DispatchMessageW(&msg);
+            }
+        }
+    }
 }

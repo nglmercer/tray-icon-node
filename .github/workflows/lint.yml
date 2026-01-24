@@ -31,7 +31,11 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libasound2-dev libpkgconf-dev
+          sudo apt-get install -y \
+            libpkgconf-dev \
+                  libglib2.0-dev \
+                  libgtk-3-dev \
+                  libayatana-appindicator3-dev
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

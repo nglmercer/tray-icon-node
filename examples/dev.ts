@@ -1,145 +1,114 @@
-import {
-  TrayIconBuilder,
-  Menu,
-  MenuItemBuilder,
-  CheckMenuItemBuilder,
-  SubmenuBuilder,
-  PredefinedMenuItem,
-  pollTrayEvents,
-  pollMenuEvents,
-  Icon,
+import { 
+  TrayIconBuilder, 
+  pollTrayEvents, 
+  pollMenuEvents, 
+  Icon, 
   initialize,
-  update,
+  update 
 } from "../index.js";
-
-// Create a simple red icon (32x32)
-const iconData = Buffer.alloc(32 * 32 * 4);
-for (let i = 0; i < 32 * 32; i++) {
-  // Red pixel in RGBA
-  iconData[i * 4 + 0] = 255;
-  iconData[i * 4 + 1] = 0;
-  iconData[i * 4 + 2] = 0;
-  iconData[i * 4 + 3] = 255;
+import { Menu, MenuItemBuilder, SubmenuBuilder, PredefinedMenuItem } from "../index.js";
+/**
+ * Generates a simple 32x32 red icon as a Buffer.
+ * @returns {Buffer}
+ */
+export function generateIconData() {
+  const iconData = Buffer.alloc(32 * 32 * 4);
+  for (let i = 0; i < 32 * 32; i++) {
+    iconData[i * 4 + 0] = 255; // R
+    iconData[i * 4 + 1] = 0;   // G
+    iconData[i * 4 + 2] = 0;   // B
+    iconData[i * 4 + 3] = 255; // A
+  }
+  return iconData;
 }
-
-async function main() {
-  console.log("Starting Tray Icon Example...");
-  initialize();
-
-  // Create an icon instance
-  const icon = Icon.fromRgba(iconData, 32, 32);
-
-  // Build a menu
+export function createTrayMenu() {
   const menu = new Menu();
 
-  // Simple item
   const helloItem = new MenuItemBuilder()
     .withText("Say Hello")
     .withId("hello")
     .build();
 
-  // Checkable item
-  const checkItem = new CheckMenuItemBuilder()
-    .withText("Notifications")
-    .withChecked(true)
-    .withId("notifications")
-    .build();
-
-  // Quit item
   const quitItem = new MenuItemBuilder()
-    .withText("Quit")
+    .withText("Exit")
     .withId("quit")
     .build();
-    
-    // Submenu
-    const subMenuBuilder = new SubmenuBuilder()
-    .withText("More Options");
-    
-    const submenu = subMenuBuilder.build();
-    
-    const subItem1 = new MenuItemBuilder()
-      .withText("Sub Item 1")
-      .withId("sub1")
-      .build();
 
-    submenu.appendMenuItem(subItem1);
-    
-    submenu.appendPredefinedMenuItem(PredefinedMenuItem.separator());
+  const subMenu = new SubmenuBuilder()
+    .withText("More Options")
+    .build();
 
-    const subItem2 = new CheckMenuItemBuilder()
-        .withText("Sub Check")
-        .withChecked(true)
-        .withId("sub2")
-        .build();
-    
-    submenu.appendCheckMenuItem(subItem2);
+  subMenu.appendMenuItem(
+    new MenuItemBuilder().withText("Sub Item 1").withId("sub1").build()
+  );
 
-  // Assemble menu
   menu.appendMenuItem(helloItem);
-  menu.appendPredefinedMenuItem(PredefinedMenuItem.separator());
-  menu.appendCheckMenuItem(checkItem);
-  menu.appendSubmenu(submenu);
+  menu.appendSubmenu(subMenu);
   menu.appendPredefinedMenuItem(PredefinedMenuItem.separator());
   menu.appendMenuItem(quitItem);
 
-  // Create the tray icon
-  const tray = new TrayIconBuilder()
-    .withTitle("My App")
-    .withTooltip("NAPI Tray Icon")
-    .withIcon(icon)
-    .withMenu(menu)
-    .build(); 
+  return menu;
+}
 
-    console.log({ tray });
+// Global reference to prevent Garbage Collection
+let tray = null;
+let isRunning = true;
 
-  // Event loop
-  // In a real Node app (e.g. Electron or persistent script), you'd have an event loop or similar.
-  // Here we simulate one with polling.
-  
-  // Initial update to ensure everything is settled
-  update();
+/**
+ * Handles incoming events from the tray and menu.
+ */
+function handleEvents() {
+  const trayEvent = pollTrayEvents();
+  if (trayEvent && trayEvent.eventType) {
+  //  console.log(trayEvent.eventType);
+  }
 
-  let running = true;
-  while (running) {
-    // Process system events (required for Linux/GTK)
-    update();
-
-    // Poll tray events
-    const trayEvent = pollTrayEvents();
-    if (trayEvent) {
-      console.log("Tray icon created. Check your system tray!", {tray, trayEvent});
+  const menuEvent = pollMenuEvents();
+  if (menuEvent) {
+    console.log("Menu Event:", menuEvent.id);
+    
+    if (menuEvent.id === "hello") {
+      console.log("Hello there!");
     }
-
-    // Poll menu events
-    const menuEvent = pollMenuEvents();
-    if (menuEvent) {
-      console.log("Menu Event:", menuEvent);
-      
-      switch (menuEvent.id) {
-        case "hello":
-          console.log("Hello there!");
-          break;
-        case "quit":
-            console.log("Quitting application...");
-            running = false;
-            break;
-        case "notifications":
-            console.log("Toggled notifications (logic not implemented)");
-            break;
-        case "sub1":
-            console.log("Sub Item 1 clicked!");
-            break;
-        case "sub2":
-            console.log("Sub Check clicked!");
-            break;
-      }
+    
+    if (menuEvent.id === "quit") {
+      isRunning = false;
     }
-
-    // Process events at ~60fps to match UI refresh rates and prevent DBus timeouts
-    await new Promise((resolve) => setTimeout(resolve, 16));
   }
 }
 
-main().catch((err) => {
-  console.error("Error running example:", err);
-});
+async function startApp() {
+  console.log("Initializing Tray Icon...");
+  
+  initialize();
+
+  const icon = Icon.fromRgba(generateIconData(), 32, 32);
+  const menu = createTrayMenu();
+
+  tray = new TrayIconBuilder()
+    .withTitle("My App")
+    .withTooltip("Right click for menu")
+    .withIcon(icon)
+    .withMenu(menu)
+    .build();
+
+  console.log("Tray successfully created.");
+
+  // Main Event Loop
+  while (isRunning) {
+    update();       // Process Windows messages (via Rust)
+    handleEvents();  // Process internal event queues
+    
+    // Small delay to prevent high CPU usage (~30 FPS)
+    await new Promise((resolve) => setTimeout(resolve, 32));
+  }
+
+  console.log("Shutting down...");
+  tray = null;
+  process.exit(0);
+}
+
+// Non-blocking background task
+setInterval(() => console.log("Heartbeat..."), 10000);
+
+startApp().catch(console.error);
