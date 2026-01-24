@@ -52,7 +52,17 @@ jobs:
         if: contains(matrix.settings.target, 'linux')
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libayatana-appindicator3-dev libglib2.0-dev
+          # Added libxdo-dev and libx11-dev
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            libglib2.0-dev \
+            libxdo-dev \
+            libx11-dev
+
+      - name: Install Cross
+        if: matrix.settings.target == 'aarch64-unknown-linux-gnu'
+        run: cargo install cross --git https://github.com/cross-rs/cross.git
 
       - name: Cache dependencies
         uses: actions/cache@v4
