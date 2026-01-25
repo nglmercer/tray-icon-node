@@ -9,6 +9,9 @@ env:
   APP_NAME: "tray-icon-node"
   NODE_VERSION: "20"
 
+permissions:
+  contents: write
+  
 jobs:
   build:
     strategy:
