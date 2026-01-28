@@ -1,15 +1,19 @@
 {
   "name": "tray-icon-node",
   "version": "0.1.0",
-  "description": "Template for NAPI (Node-API) native addons with Bun runtime",
+  "description": "Cross-platform system tray icon library for Node.js with native Rust bindings",
   "keywords": [
-    "napi",
-    "node-addon",
+    "tray",
+    "tray-icon",
+    "system-tray",
+    "systray",
+    "menu",
     "native",
     "rust",
-    "bun",
-    "template",
-    "starter"
+    "napi",
+    "node-addon",
+    "cross-platform",
+    "bun"
   ],
   "homepage": "https://github.com/nglmercer/tray-icon-node#readme",
   "repository": {
@@ -29,10 +33,12 @@
     "bun": ">=1.0.0"
   },
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "index.js",
+  "types": "index.d.ts",
   "files": [
-    "dist/",
+    "index.js",
+    "index.d.ts",
+    "*.node",
     "README.md",
     "LICENSE"
   ],
