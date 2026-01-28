@@ -14,8 +14,8 @@ impl From<tray_icon::Rect> for Rect {
         Self {
             x: rect.position.x,
             y: rect.position.y,
-            width: rect.size.width as f64,
-            height: rect.size.height as f64,
+            width: f64::from(rect.size.width),
+            height: f64::from(rect.size.height),
         }
     }
 }

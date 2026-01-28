@@ -11,18 +11,18 @@
     "template",
     "starter"
   ],
-  "homepage": "https://github.com/your-username/your-repo#readme",
+  "homepage": "https://github.com/nglmercer/tray-icon-node#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/your-username/your-repo.git"
+    "url": "git+https://github.com/nglmercer/tray-icon-node.git"
   },
   "bugs": {
-    "url": "https://github.com/your-username/your-repo/issues"
+    "url": "https://github.com/nglmercer/tray-icon-node/issues"
   },
   "license": "MIT",
   "author": {
-    "name": "Your Name",
-    "email": "your.email@example.com"
+    "name": "nglmercer",
+    "email": "nglmercer@gmail.com"
   },
   "engines": {
     "node": ">=18.0.0",

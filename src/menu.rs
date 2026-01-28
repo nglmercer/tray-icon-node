@@ -38,7 +38,7 @@ impl Menu {
     pub fn append_check_menu_item(&self, item: &CheckMenuItem, id: String) -> Result<()> {
         self.inner
             .append(&item.0)
-            .map_err(|e| Error::from_reason(format!("{}", e)))?;
+            .map_err(|e| Error::from_reason(format!("{e}")))?;
 
         self.register(id, AnyMenuItem::Check(item.0.clone()));
         Ok(())
@@ -47,7 +47,7 @@ impl Menu {
     pub fn append_menu_item(&self, item: &MenuItem, id: Option<String>) -> Result<()> {
         self.inner
             .append(&item.0)
-            .map_err(|e| Error::from_reason(format!("{}", e)))?;
+            .map_err(|e| Error::from_reason(format!("{e}")))?;
 
         if let Some(id_str) = id {
             self.register(id_str, AnyMenuItem::Standard(item.0.clone()));
@@ -58,7 +58,7 @@ impl Menu {
     pub fn append_submenu(&self, item: &Submenu, id: Option<String>) -> Result<()> {
         self.inner
             .append(&item.0)
-            .map_err(|e| Error::from_reason(format!("{}", e)))?;
+            .map_err(|e| Error::from_reason(format!("{e}")))?;
 
         if let Some(id_str) = id {
             self.register(id_str, AnyMenuItem::Submenu(item.0.clone()));
@@ -70,7 +70,7 @@ impl Menu {
     pub fn append_icon_menu_item(&self, item: &IconMenuItem, id: String) -> Result<()> {
         self.inner
             .append(&item.0)
-            .map_err(|e| Error::from_reason(format!("{}", e)))?;
+            .map_err(|e| Error::from_reason(format!("{e}")))?;
 
         self.register(id, AnyMenuItem::Icon(item.0.clone()));
         Ok(())
@@ -80,7 +80,7 @@ impl Menu {
     pub fn append_predefined_menu_item(&self, item: &PredefinedMenuItem) -> Result<()> {
         self.inner
             .append(&item.0)
-            .map_err(|e| Error::from_reason(format!("{}", e)))
+            .map_err(|e| Error::from_reason(format!("{e}")))
     }
     #[napi]
     pub fn is_checked(&self, id: String) -> bool {
@@ -125,15 +125,15 @@ impl Default for Menu {
 pub struct MenuItem(pub(crate) tray_menu::MenuItem);
 
 #[napi]
-impl CheckMenuItem {
+impl MenuItem {
     #[napi]
-    pub fn is_checked(&self) -> bool {
-        self.0.is_checked()
+    pub fn set_text(&self, text: String) {
+        self.0.set_text(text);
     }
 
     #[napi]
-    pub fn set_checked(&self, checked: bool) {
-        self.0.set_checked(checked);
+    pub fn set_enabled(&self, enabled: bool) {
+        self.0.set_enabled(enabled);
     }
 }
 
@@ -271,40 +271,53 @@ impl Default for CheckMenuItemBuilder {
 pub struct Submenu(pub(crate) tray_menu::Submenu);
 
 #[napi]
+impl CheckMenuItem {
+    #[napi]
+    pub fn is_checked(&self) -> bool {
+        self.0.is_checked()
+    }
+
+    #[napi]
+    pub fn set_checked(&self, checked: bool) {
+        self.0.set_checked(checked);
+    }
+}
+
+#[napi]
 impl Submenu {
     #[napi]
     pub fn append_menu_item(&self, item: &MenuItem) -> Result<()> {
         self.0
             .append(&item.0)
-            .map_err(|e| Error::from_reason(format!("{}", e)))
+            .map_err(|e| Error::from_reason(format!("{e}")))
     }
 
     #[napi]
     pub fn append_submenu(&self, item: &Submenu) -> Result<()> {
         self.0
             .append(&item.0)
-            .map_err(|e| Error::from_reason(format!("{}", e)))
+            .map_err(|e| Error::from_reason(format!("{e}")))
     }
 
     #[napi]
     pub fn append_check_menu_item(&self, item: &CheckMenuItem) -> Result<()> {
         self.0
             .append(&item.0)
-            .map_err(|e| Error::from_reason(format!("{}", e)))
+            .map_err(|e| Error::from_reason(format!("{e}")))
     }
 
     #[napi]
     pub fn append_icon_menu_item(&self, item: &IconMenuItem) -> Result<()> {
         self.0
             .append(&item.0)
-            .map_err(|e| Error::from_reason(format!("{}", e)))
+            .map_err(|e| Error::from_reason(format!("{e}")))
     }
 
     #[napi]
     pub fn append_predefined_menu_item(&self, item: &PredefinedMenuItem) -> Result<()> {
         self.0
             .append(&item.0)
-            .map_err(|e| Error::from_reason(format!("{}", e)))
+            .map_err(|e| Error::from_reason(format!("{e}")))
     }
 }
 
@@ -364,6 +377,19 @@ impl PredefinedMenuItem {
 pub struct IconMenuItem(pub(crate) tray_menu::IconMenuItem);
 
 #[napi]
+impl IconMenuItem {
+    #[napi]
+    pub fn set_text(&self, text: String) {
+        self.0.set_text(text);
+    }
+
+    #[napi]
+    pub fn set_enabled(&self, enabled: bool) {
+        self.0.set_enabled(enabled);
+    }
+}
+
+#[napi]
 #[derive(Clone)]
 pub struct IconMenuItemBuilder {
     text: String,
@@ -399,7 +425,7 @@ impl IconMenuItemBuilder {
     #[napi]
     pub fn with_icon(&mut self, icon: &Icon) -> Result<IconMenuItemBuilder> {
         let tray_icon = tray_menu::Icon::from_rgba(icon.rgba.clone(), icon.width, icon.height)
-            .map_err(|e| Error::from_reason(format!("Failed to create menu icon: {}", e)))?;
+            .map_err(|e| Error::from_reason(format!("Failed to create menu icon: {e}")))?;
         self.icon = Some(tray_icon);
         Ok(self.clone())
     }
@@ -437,7 +463,7 @@ impl Default for IconMenuItemBuilder {
     }
 }
 
-#[napi]
+#[napi(object)]
 pub struct MenuEvent {
     pub id: String,
 }
@@ -450,7 +476,7 @@ pub fn poll_menu_events() -> Option<MenuEvent> {
         .map(|e| MenuEvent { id: e.id.0 })
 }
 
-#[napi]
+#[napi(object)]
 pub struct AboutMetadata {
     pub name: Option<String>,
     pub version: Option<String>,

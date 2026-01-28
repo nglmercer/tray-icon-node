@@ -38,11 +38,18 @@ pub fn update() {
         };
         unsafe {
             let mut msg: MSG = std::mem::zeroed();
-            // Procesa todos los mensajes pendientes en la cola de Windows
+            // Process all pending messages in the Windows message queue
             while PeekMessageW(&mut msg, 0, 0, 0, PM_REMOVE) != 0 {
                 TranslateMessage(&msg);
                 DispatchMessageW(&msg);
             }
         }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        // On macOS, the tray-icon crate uses the standard NSApplication run loop.
+        // No manual event pumping is required as the system handles it automatically.
+        // This function is a no-op on macOS but kept for cross-platform API consistency.
     }
 }

@@ -80,7 +80,7 @@ impl From<RawTrayIconEvent> for TrayIconEvent {
             },
             _ => Self {
                 event_type: "unknown".to_string(),
-                id: "".to_string(),
+                id: String::new(),
                 x: 0.0,
                 y: 0.0,
                 icon_rect: Rect {
@@ -101,7 +101,7 @@ pub fn poll_tray_events() -> Option<TrayIconEvent> {
     tray_icon::TrayIconEvent::receiver()
         .try_recv()
         .ok()
-        .map(|e| e.into())
+        .map(std::convert::Into::into)
 }
 
 #[napi]
@@ -113,7 +113,7 @@ impl TrayIcon {
     pub fn set_icon(&mut self, icon: Option<&Icon>) -> Result<()> {
         if let Some(tray) = &self.0 {
             tray.set_icon(icon.map(|i| i.inner.clone()))
-                .map_err(|e| Error::from_reason(format!("Failed to set icon: {}", e)))?;
+                .map_err(|e| Error::from_reason(format!("Failed to set icon: {e}")))?;
         }
         Ok(())
     }
@@ -206,7 +206,7 @@ impl TrayIconBuilder {
 
         let tray = builder
             .build()
-            .map_err(|e| Error::from_reason(format!("Failed to build tray icon: {}", e)))?;
+            .map_err(|e| Error::from_reason(format!("Failed to build tray icon: {e}")))?;
         Ok(TrayIcon(Some(tray)))
     }
 }
