@@ -1,6 +1,6 @@
 {
   "name": "tray-icon-node",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Cross-platform system tray icon library for Node.js with native Rust bindings",
   "keywords": [
     "tray",
