@@ -115,19 +115,19 @@ function buildMenu(): Menu {
     .withId("toggle_turbo")
     .withChecked(state.turboMode)
     .build();
-  advancedMenu.appendCheckMenuItem(turboItem);
+  advancedMenu.appendCheckMenuItem(turboItem, "toggle_turbo");
 
   const subItem1 = new MenuItemBuilder()
     .withText("Sub Action A")
     .withId("sub_action_a")
     .build();
-  advancedMenu.appendMenuItem(subItem1);
+  advancedMenu.appendMenuItem(subItem1, "sub_action_a");
 
   const subItem2 = new MenuItemBuilder()
     .withText("Sub Action B")
     .withId("sub_action_b")
     .build();
-  advancedMenu.appendMenuItem(subItem2);
+  advancedMenu.appendMenuItem(subItem2, "sub_action_b");
 
   /* ---- Nested submenu (Theme selector) ---- */
 
@@ -145,10 +145,10 @@ function buildMenu(): Menu {
       .withText(label)
       .withId(id)
       .build();
-    themeMenu.appendMenuItem(themeItem);
+    themeMenu.appendMenuItem(themeItem, id);
   }
 
-  advancedMenu.appendSubmenu(themeMenu);
+  advancedMenu.appendSubmenu(themeMenu, "theme_menu");
   menu.appendSubmenu(advancedMenu, "advanced");
 
   menu.appendPredefinedMenuItem(PredefinedMenuItem.separator());

@@ -183,11 +183,13 @@ const submenu = new SubmenuBuilder()
   .withEnabled(enabled: boolean)
   .build();
 
-submenu.appendMenuItem(item: MenuItem): void
-submenu.appendSubmenu(item: Submenu): void
-submenu.appendCheckMenuItem(item: CheckMenuItem): void
-submenu.appendIconMenuItem(item: IconMenuItem): void
+submenu.appendMenuItem(item: MenuItem, id?: string): void
+submenu.appendSubmenu(item: Submenu, id?: string): void
+submenu.appendCheckMenuItem(item: CheckMenuItem, id: string): void
+submenu.appendIconMenuItem(item: IconMenuItem, id?: string): void
 submenu.appendPredefinedMenuItem(item: PredefinedMenuItem): void
+submenu.isChecked(id: string): boolean
+submenu.toggleCheck(id: string): boolean
 ```
 
 #### `Icon`

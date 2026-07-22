@@ -9,7 +9,7 @@ pub enum AnyMenuItem {
     Standard(tray_menu::MenuItem),
     Check(tray_menu::CheckMenuItem),
     Icon(tray_menu::IconMenuItem),
-    Submenu(tray_menu::Submenu),
+    Submenu(Submenu),
 }
 
 // SAFETY: All variants of `AnyMenuItem` wrap types from the `tray-icon` crate,
@@ -89,11 +89,11 @@ impl Menu {
     #[napi]
     pub fn append_submenu(&self, item: &Submenu, id: Option<String>) -> Result<()> {
         self.inner
-            .append(&item.0)
+            .append(&item.inner)
             .map_err(|e| Error::from_reason(format!("{e}")))?;
 
         if let Some(id_str) = id {
-            self.register(id_str, AnyMenuItem::Submenu(item.0.clone()));
+            self.register(id_str, AnyMenuItem::Submenu(item.clone()));
         }
         Ok(())
     }
@@ -131,6 +131,13 @@ impl Menu {
         if let Some(AnyMenuItem::Check(item)) = reg.get(&id) {
             return item.is_checked();
         }
+        for item in reg.values() {
+            if let AnyMenuItem::Submenu(submenu) = item {
+                if submenu.is_checked(id.clone()) {
+                    return true;
+                }
+            }
+        }
         false
     }
 
@@ -141,6 +148,13 @@ impl Menu {
             let new_state = !item.is_checked();
             item.set_checked(new_state);
             return new_state;
+        }
+        for item in reg.values() {
+            if let AnyMenuItem::Submenu(submenu) = item {
+                if submenu.has_id(&id) {
+                    return submenu.toggle_check(id.clone());
+                }
+            }
         }
         false
     }
@@ -153,7 +167,16 @@ impl Menu {
                 AnyMenuItem::Standard(i) => i.set_text(text),
                 AnyMenuItem::Check(i) => i.set_text(text),
                 AnyMenuItem::Icon(i) => i.set_text(text),
-                AnyMenuItem::Submenu(i) => i.set_text(text),
+                AnyMenuItem::Submenu(i) => i.inner.set_text(text),
+            }
+            return;
+        }
+        for item in reg.values() {
+            if let AnyMenuItem::Submenu(submenu) = item {
+                if submenu.has_id(&id) {
+                    submenu.set_text(id, text);
+                    return;
+                }
             }
         }
     }
@@ -329,7 +352,11 @@ impl Default for CheckMenuItemBuilder {
 }
 
 #[napi]
-pub struct Submenu(pub(crate) tray_menu::Submenu);
+#[derive(Clone)]
+pub struct Submenu {
+    pub(crate) inner: tray_menu::Submenu,
+    pub(crate) registry: Arc<Mutex<HashMap<String, AnyMenuItem>>>,
+}
 
 #[napi]
 impl CheckMenuItem {
@@ -344,6 +371,49 @@ impl CheckMenuItem {
     }
 }
 
+impl Submenu {
+    fn register(&self, id: String, item: AnyMenuItem) {
+        let mut reg = lock_registry(&self.registry);
+        reg.insert(id, item);
+    }
+
+    fn has_id(&self, id: &str) -> bool {
+        let reg = lock_registry(&self.registry);
+        if reg.contains_key(id) {
+            return true;
+        }
+        for item in reg.values() {
+            if let AnyMenuItem::Submenu(submenu) = item {
+                if submenu.has_id(id) {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    fn set_text(&self, id: String, text: String) {
+        let reg = lock_registry(&self.registry);
+        if let Some(any_item) = reg.get(&id) {
+            match any_item {
+                AnyMenuItem::Standard(i) => i.set_text(text),
+                AnyMenuItem::Check(i) => i.set_text(text),
+                AnyMenuItem::Icon(i) => i.set_text(text),
+                AnyMenuItem::Submenu(i) => i.inner.set_text(text),
+            }
+            return;
+        }
+        for item in reg.values() {
+            if let AnyMenuItem::Submenu(submenu) = item {
+                if submenu.has_id(&id) {
+                    submenu.set_text(id, text);
+                    return;
+                }
+            }
+        }
+    }
+}
+
 #[napi]
 impl Submenu {
     /// Appends a standard menu item to this submenu.
@@ -352,10 +422,15 @@ impl Submenu {
     ///
     /// Returns an error if the underlying OS menu operation fails.
     #[napi]
-    pub fn append_menu_item(&self, item: &MenuItem) -> Result<()> {
-        self.0
+    pub fn append_menu_item(&self, item: &MenuItem, id: Option<String>) -> Result<()> {
+        self.inner
             .append(&item.0)
-            .map_err(|e| Error::from_reason(format!("{e}")))
+            .map_err(|e| Error::from_reason(format!("{e}")))?;
+
+        if let Some(id_str) = id {
+            self.register(id_str, AnyMenuItem::Standard(item.0.clone()));
+        }
+        Ok(())
     }
 
     /// Appends a nested submenu to this submenu.
@@ -365,10 +440,15 @@ impl Submenu {
     /// Returns an error if the underlying OS menu operation fails.
     #[allow(clippy::use_self)]
     #[napi]
-    pub fn append_submenu(&self, item: &Submenu) -> Result<()> {
-        self.0
-            .append(&item.0)
-            .map_err(|e| Error::from_reason(format!("{e}")))
+    pub fn append_submenu(&self, item: &Submenu, id: Option<String>) -> Result<()> {
+        self.inner
+            .append(&item.inner)
+            .map_err(|e| Error::from_reason(format!("{e}")))?;
+
+        if let Some(id_str) = id {
+            self.register(id_str, AnyMenuItem::Submenu(item.clone()));
+        }
+        Ok(())
     }
 
     /// Appends a checkable menu item to this submenu.
@@ -377,10 +457,13 @@ impl Submenu {
     ///
     /// Returns an error if the underlying OS menu operation fails.
     #[napi]
-    pub fn append_check_menu_item(&self, item: &CheckMenuItem) -> Result<()> {
-        self.0
+    pub fn append_check_menu_item(&self, item: &CheckMenuItem, id: String) -> Result<()> {
+        self.inner
             .append(&item.0)
-            .map_err(|e| Error::from_reason(format!("{e}")))
+            .map_err(|e| Error::from_reason(format!("{e}")))?;
+
+        self.register(id, AnyMenuItem::Check(item.0.clone()));
+        Ok(())
     }
 
     /// Appends an icon menu item to this submenu.
@@ -389,10 +472,15 @@ impl Submenu {
     ///
     /// Returns an error if the underlying OS menu operation fails.
     #[napi]
-    pub fn append_icon_menu_item(&self, item: &IconMenuItem) -> Result<()> {
-        self.0
+    pub fn append_icon_menu_item(&self, item: &IconMenuItem, id: Option<String>) -> Result<()> {
+        self.inner
             .append(&item.0)
-            .map_err(|e| Error::from_reason(format!("{e}")))
+            .map_err(|e| Error::from_reason(format!("{e}")))?;
+
+        if let Some(id_str) = id {
+            self.register(id_str, AnyMenuItem::Icon(item.0.clone()));
+        }
+        Ok(())
     }
 
     /// Appends a predefined menu item (e.g., separator) to this submenu.
@@ -402,9 +490,43 @@ impl Submenu {
     /// Returns an error if the underlying OS menu operation fails.
     #[napi]
     pub fn append_predefined_menu_item(&self, item: &PredefinedMenuItem) -> Result<()> {
-        self.0
+        self.inner
             .append(&item.0)
             .map_err(|e| Error::from_reason(format!("{e}")))
+    }
+
+    #[napi]
+    pub fn is_checked(&self, id: String) -> bool {
+        let reg = lock_registry(&self.registry);
+        if let Some(AnyMenuItem::Check(item)) = reg.get(&id) {
+            return item.is_checked();
+        }
+        for item in reg.values() {
+            if let AnyMenuItem::Submenu(submenu) = item {
+                if submenu.is_checked(id.clone()) {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    #[napi]
+    pub fn toggle_check(&self, id: String) -> bool {
+        let reg = lock_registry(&self.registry);
+        if let Some(AnyMenuItem::Check(item)) = reg.get(&id) {
+            let new_state = !item.is_checked();
+            item.set_checked(new_state);
+            return new_state;
+        }
+        for item in reg.values() {
+            if let AnyMenuItem::Submenu(submenu) = item {
+                if submenu.has_id(&id) {
+                    return submenu.toggle_check(id.clone());
+                }
+            }
+        }
+        false
     }
 }
 
@@ -446,7 +568,10 @@ impl SubmenuBuilder {
     /// Returns an error if the underlying OS fails to create the submenu.
     #[napi]
     pub fn build(&self) -> Result<Submenu> {
-        Ok(Submenu(tray_menu::Submenu::new(&self.text, self.enabled)))
+        Ok(Submenu {
+            inner: tray_menu::Submenu::new(&self.text, self.enabled),
+            registry: Arc::new(Mutex::new(HashMap::new())),
+        })
     }
 }
 

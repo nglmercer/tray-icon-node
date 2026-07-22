@@ -235,8 +235,19 @@ describeIfNative("Submenu Operations", () => {
 
   test("appendCheckMenuItem to submenu works", () => {
     const submenu = new SubmenuBuilder().withText("Sub").build();
-    const item = new CheckMenuItemBuilder().withText("Check").build();
-    expect(() => submenu.appendCheckMenuItem(item)).not.toThrow();
+    const item = new CheckMenuItemBuilder().withText("Check").withChecked(true).build();
+    expect(() => submenu.appendCheckMenuItem(item, "sub-check")).not.toThrow();
+    expect(submenu.isChecked("sub-check")).toBe(true);
+  });
+
+  test("toggleCheck on submenu item flips state", () => {
+    const submenu = new SubmenuBuilder().withText("Sub").build();
+    const item = new CheckMenuItemBuilder().withText("Toggle").withChecked(false).build();
+    submenu.appendCheckMenuItem(item, "sub-toggle");
+    expect(submenu.isChecked("sub-toggle")).toBe(false);
+    const newState = submenu.toggleCheck("sub-toggle");
+    expect(newState).toBe(true);
+    expect(submenu.isChecked("sub-toggle")).toBe(true);
   });
 
   test("nested submenu works", () => {
