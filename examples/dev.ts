@@ -1,139 +1,402 @@
-import { 
-  TrayIconBuilder, 
+import {
+  TrayIconBuilder,
   CheckMenuItemBuilder,
-  pollTrayEvents, 
-  pollMenuEvents, 
-  Icon, 
+  MenuItemBuilder,
+  SubmenuBuilder,
+  PredefinedMenuItem,
+  Menu,
+  Icon,
+  TrayIcon,
   initialize,
-  update 
+  update,
+  pollTrayEvents,
+  pollMenuEvents,
 } from "../index.js";
-import { Menu, MenuItemBuilder, SubmenuBuilder, PredefinedMenuItem } from "../index.js";
-/**
- * Generates a simple 32x32 red icon as a Buffer.
- * @returns {Buffer}
- */
-export function generateIconData() {
-  const iconData = Buffer.alloc(32 * 32 * 4);
-  for (let i = 0; i < 32 * 32; i++) {
-    iconData[i * 4 + 0] = 255; // R
-    iconData[i * 4 + 1] = 0;   // G
-    iconData[i * 4 + 2] = 0;   // B
-    iconData[i * 4 + 3] = 255; // A
+
+// ---------------------------------------------------------------------------
+// Icon generation helpers
+// ---------------------------------------------------------------------------
+
+function createSolidIcon(r: number, g: number, b: number, size = 32): Icon {
+  const data = Buffer.alloc(size * size * 4);
+  for (let i = 0; i < size * size; i++) {
+    data[i * 4 + 0] = r;
+    data[i * 4 + 1] = g;
+    data[i * 4 + 2] = b;
+    data[i * 4 + 3] = 255;
   }
-  return iconData;
+  return Icon.fromRgba(data, size, size);
 }
-export function createTrayMenu() {
+
+function createGradientIcon(size = 32): Icon {
+  const data = Buffer.alloc(size * size * 4);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = (y * size + x) * 4;
+      data[i + 0] = Math.round((x / size) * 255);
+      data[i + 1] = Math.round((y / size) * 255);
+      data[i + 2] = 180;
+      data[i + 3] = 255;
+    }
+  }
+  return Icon.fromRgba(data, size, size);
+}
+
+// ---------------------------------------------------------------------------
+// Application state
+// ---------------------------------------------------------------------------
+
+interface AppState {
+  notificationsEnabled: boolean;
+  turboMode: boolean;
+  darkMode: boolean;
+  clickCount: number;
+  startTime: number;
+}
+
+const state: AppState = {
+  notificationsEnabled: true,
+  turboMode: false,
+  darkMode: false,
+  clickCount: 0,
+  startTime: Date.now(),
+};
+
+// ---------------------------------------------------------------------------
+// Menu builder
+// ---------------------------------------------------------------------------
+
+function buildMenu(): Menu {
   const menu = new Menu();
 
-  // 1. Standard Item
+  /* ---- Section: Actions ---- */
+
   const helloItem = new MenuItemBuilder()
-    .withText("Say Hello")
+    .withText("👋 Say Hello")
     .withId("hello")
     .build();
+  menu.appendMenuItem(helloItem, "hello");
 
-  // 2. Checkbox Item in the Main Menu
-  const toggleItem = new CheckMenuItemBuilder()
-    .withText("Notifications Enabled")
-    .withId("toggle_notif")
-    .withChecked(true) // Initial state
+  const counterItem = new MenuItemBuilder()
+    .withText(`Clicks: ${state.clickCount}`)
+    .withId("counter")
+    .withEnabled(false)
     .build();
+  menu.appendMenuItem(counterItem, "counter");
 
-  // 3. Submenu with a Checkbox inside
-  const subMenu = new SubmenuBuilder()
-    .withText("More Options")
-    .build();
-
-  subMenu.appendMenuItem(
-    new MenuItemBuilder().withText("Sub Item 1").withId("sub1").build()
-  );
-
-  // Adding a checkbox to the SUBMENU
-  subMenu.appendCheckMenuItem(
-    new CheckMenuItemBuilder()
-      .withText("Enable Turbo Mode")
-      .withId("turbo_mode")
-      .withChecked(false)
-      .build()
-  );
-
-  // Build the main menu structure
-  menu.appendMenuItem(helloItem);
-  menu.appendCheckMenuItem(toggleItem,"toggle_notif"); // Append the checkbox
-  menu.appendSubmenu(subMenu);
   menu.appendPredefinedMenuItem(PredefinedMenuItem.separator());
-  
+
+  /* ---- Section: Toggle settings ---- */
+
+  const notifItem = new CheckMenuItemBuilder()
+    .withText("🔔 Notifications")
+    .withId("toggle_notifications")
+    .withChecked(state.notificationsEnabled)
+    .build();
+  menu.appendCheckMenuItem(notifItem, "toggle_notifications");
+
+  const darkItem = new CheckMenuItemBuilder()
+    .withText("🌙 Dark Mode")
+    .withId("toggle_darkmode")
+    .withChecked(state.darkMode)
+    .build();
+  menu.appendCheckMenuItem(darkItem, "toggle_darkmode");
+
+  menu.appendPredefinedMenuItem(PredefinedMenuItem.separator());
+
+  /* ---- Section: Submenu (Advanced) ---- */
+
+  const advancedMenu = new SubmenuBuilder()
+    .withText("⚙️ Advanced")
+    .build();
+
+  const turboItem = new CheckMenuItemBuilder()
+    .withText("🚀 Turbo Mode")
+    .withId("toggle_turbo")
+    .withChecked(state.turboMode)
+    .build();
+  advancedMenu.appendCheckMenuItem(turboItem);
+
+  const subItem1 = new MenuItemBuilder()
+    .withText("Sub Action A")
+    .withId("sub_action_a")
+    .build();
+  advancedMenu.appendMenuItem(subItem1);
+
+  const subItem2 = new MenuItemBuilder()
+    .withText("Sub Action B")
+    .withId("sub_action_b")
+    .build();
+  advancedMenu.appendMenuItem(subItem2);
+
+  /* ---- Nested submenu (Theme selector) ---- */
+
+  const themeMenu = new SubmenuBuilder()
+    .withText("🎨 Theme")
+    .build();
+
+  for (const [label, id] of [
+    ["Red", "theme_red"],
+    ["Green", "theme_green"],
+    ["Blue", "theme_blue"],
+    ["Gradient", "theme_gradient"],
+  ] as const) {
+    const themeItem = new MenuItemBuilder()
+      .withText(label)
+      .withId(id)
+      .build();
+    themeMenu.appendMenuItem(themeItem);
+  }
+
+  advancedMenu.appendSubmenu(themeMenu);
+  menu.appendSubmenu(advancedMenu, "advanced");
+
+  menu.appendPredefinedMenuItem(PredefinedMenuItem.separator());
+
+  /* ---- Section: Info ---- */
+
+  const uptimeItem = new MenuItemBuilder()
+    .withText("Uptime: 0s")
+    .withId("uptime")
+    .withEnabled(false)
+    .build();
+  menu.appendMenuItem(uptimeItem, "uptime");
+
+  const aboutItem = new MenuItemBuilder()
+    .withText("ℹ️ About")
+    .withId("about")
+    .build();
+  menu.appendMenuItem(aboutItem, "about");
+
+  menu.appendPredefinedMenuItem(PredefinedMenuItem.separator());
+
+  /* ---- Section: Quit ---- */
+
   const quitItem = new MenuItemBuilder()
-    .withText("Exit")
+    .withText("✕ Quit")
     .withId("quit")
     .build();
-  menu.appendMenuItem(quitItem);
-  return {menu,subMenu,toggleItem,helloItem};
+  menu.appendMenuItem(quitItem, "quit");
+
+  return menu;
 }
 
-// Global reference to prevent Garbage Collection
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let tray: any = null;
-void tray;
+// ---------------------------------------------------------------------------
+// Dynamic UI updates
+// ---------------------------------------------------------------------------
+
+function updateMenuText(menu: Menu): void {
+  menu.setText("counter", `Clicks: ${state.clickCount}`);
+
+  const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+  const minutes = Math.floor(elapsed / 60);
+  const seconds = elapsed % 60;
+  menu.setText("uptime", `Uptime: ${minutes}m ${seconds}s`);
+
+  menu.setText(
+    "toggle_notifications",
+    `${state.notificationsEnabled ? "🔔" : "🔕"} Notifications`
+  );
+  menu.setText("toggle_darkmode", `${state.darkMode ? "🌙" : "☀️"} Dark Mode`);
+  menu.setText("toggle_turbo", `${state.turboMode ? "🚀" : "🐢"} Turbo Mode`);
+}
+
+function updateTooltip(tr: TrayIcon): void {
+  const parts: string[] = [`tray-icon-node [${currentIcon}]`];
+  if (state.notificationsEnabled) parts.push("🔔");
+  if (state.turboMode) parts.push("🚀");
+  if (state.darkMode) parts.push("🌙");
+  parts.push(`| ${state.clickCount} clicks`);
+  tr.setTooltip(parts.join(" "));
+}
+
+// ---------------------------------------------------------------------------
+// Event handling
+// ---------------------------------------------------------------------------
+
+type ThemeName = "red" | "green" | "blue" | "gradient";
+
+let currentIcon: ThemeName = "gradient";
+let tray: TrayIcon | null = null;
+let menu: Menu | null = null;
+
+const icons: Record<ThemeName, Icon> = {
+  red: createSolidIcon(220, 60, 60),
+  green: createSolidIcon(60, 200, 100),
+  blue: createSolidIcon(60, 120, 220),
+  gradient: createGradientIcon(),
+};
+
+function changeIcon(theme: ThemeName): void {
+  currentIcon = theme;
+  if (tray) {
+    tray.setIcon(icons[theme]);
+  }
+  menu?.setText("advanced", `⚙️ Active: ${theme}`);
+}
+
+function handleMenuEvent(menu: Menu): void {
+  const event = pollMenuEvents();
+  if (!event) return;
+
+  switch (event.id) {
+    case "hello":
+      state.clickCount++;
+      console.log("Hello from tray-icon-node! 👋");
+      break;
+
+    case "toggle_notifications":
+      state.notificationsEnabled = menu.toggleCheck("toggle_notifications");
+      console.log(`Notifications: ${state.notificationsEnabled ? "ON" : "OFF"}`);
+      break;
+
+    case "toggle_darkmode":
+      state.darkMode = menu.toggleCheck("toggle_darkmode");
+      console.log(`Dark mode: ${state.darkMode ? "ON" : "OFF"}`);
+      break;
+
+    case "toggle_turbo":
+      state.turboMode = menu.toggleCheck("toggle_turbo");
+      console.log(`Turbo mode: ${state.turboMode ? "ON" : "OFF"}`);
+      break;
+
+    case "sub_action_a":
+      console.log("Sub Action A triggered");
+      break;
+
+    case "sub_action_b":
+      console.log("Sub Action B triggered");
+      break;
+
+    case "theme_red":
+      changeIcon("red");
+      console.log("Theme: Red");
+      break;
+
+    case "theme_green":
+      changeIcon("green");
+      console.log("Theme: Green");
+      break;
+
+    case "theme_blue":
+      changeIcon("blue");
+      console.log("Theme: Blue");
+      break;
+
+    case "theme_gradient":
+      changeIcon("gradient");
+      console.log("Theme: Gradient");
+      break;
+
+    case "about":
+      const uptime = Math.floor((Date.now() - state.startTime) / 1000);
+      console.log("=== tray-icon-node ===");
+      console.log(`Version: 0.1.1`);
+      console.log(`Uptime: ${uptime}s`);
+      console.log(`Clicks: ${state.clickCount}`);
+      console.log(`Notifications: ${state.notificationsEnabled}`);
+      console.log(`Dark mode: ${state.darkMode}`);
+      console.log(`Turbo mode: ${state.turboMode}`);
+      break;
+
+    case "quit":
+      shutdown();
+      break;
+
+    default:
+      break;
+  }
+}
+
+function handleTrayEvent(): void {
+  const event = pollTrayEvents();
+  if (!event) return;
+
+  switch (event.eventType) {
+    case "click":
+      state.clickCount++;
+      console.log(`Tray clicked at (${event.x}, ${event.y}) — button: ${event.button}`);
+      break;
+    case "double-click":
+      state.clickCount += 2;
+      console.log("Tray double-clicked");
+      break;
+    case "enter":
+      console.log("Mouse entered tray icon");
+      break;
+    case "leave":
+      console.log("Mouse left tray icon");
+      break;
+    case "move":
+      break;
+    default:
+      break;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Lifecycle
+// ---------------------------------------------------------------------------
+
 let isRunning = true;
 
-/**
- * Handles incoming events from the tray and menu.
- */
-function handleEvents(menu: Menu) {
-  const trayEvent = pollTrayEvents();
-  if (trayEvent && trayEvent.eventType) {
-  //  console.log(trayEvent.eventType);
-  }
+function shutdown(): void {
+  console.log("Shutting down...");
+  isRunning = false;
+}
 
-  const menuEvent = pollMenuEvents();
-  if (menuEvent) {
-    console.log("Menu Event:", menuEvent);
-    
-    if (menuEvent.id === "hello") {
-      console.log("Hello there!");
-    }
-    
-    if (menuEvent.id === "quit") {
-      isRunning = false;
-    }
-    const currentlyChecked = menu.isChecked("toggle_notif");
-    menu.setText("toggle_notif", "Notifications: " + currentlyChecked);
-    console.log({currentlyChecked})
+function setupSignalHandlers(): void {
+  const signals: NodeJS.Signals[] = ["SIGINT", "SIGTERM"];
+  for (const sig of signals) {
+    process.on(sig, () => {
+      console.log(`\nReceived ${sig}`);
+      shutdown();
+    });
   }
 }
 
-async function startApp() {
-  console.log("Initializing Tray Icon...");
-  
+async function main(): Promise<void> {
+  console.log("╔══════════════════════════════════╗");
+  console.log("║  tray-icon-node example          ║");
+  console.log("║  Right-click the tray icon       ║");
+  console.log("╚══════════════════════════════════╝");
+
   initialize();
 
-  const icon = Icon.fromRgba(generateIconData(), 32, 32);
-  const {menu} = createTrayMenu();
+  menu = buildMenu();
 
   tray = new TrayIconBuilder()
-    .withTitle("My App")
-    .withTooltip("Right click for menu")
-    .withIcon(icon)
+    .withIcon(icons.gradient)
+    .withTitle("Demo")
+    .withTooltip("tray-icon-node — right-click for menu")
     .withMenu(menu)
     .build();
 
-  console.log("Tray successfully created.");
+  setupSignalHandlers();
 
-  // Main Event Loop
+  console.log("Tray icon active. Press Ctrl+C to quit.\n");
+
+  let tick = 0;
   while (isRunning) {
-    update();       // Process Windows messages (via Rust)
-    handleEvents(menu);  // Process internal event queues
-    
-    // Small delay to prevent high CPU usage (~30 FPS)
+    update();
+    handleTrayEvent();
+    handleMenuEvent(menu);
+
+    if (tick % 30 === 0) {
+      updateMenuText(menu);
+      updateTooltip(tray);
+    }
+
+    tick++;
     await new Promise((resolve) => setTimeout(resolve, 32));
   }
 
-  console.log("Shutting down...");
   tray = null;
+  menu = null;
   process.exit(0);
 }
 
-// Non-blocking background task
-setInterval(() => console.log("Heartbeat..."), 10000);
-
-startApp().catch(console.error);
+main().catch((err) => {
+  console.error("Fatal error:", err);
+  process.exit(1);
+});
