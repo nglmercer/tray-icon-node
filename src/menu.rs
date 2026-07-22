@@ -12,7 +12,13 @@ pub enum AnyMenuItem {
     Submenu(tray_menu::Submenu),
 }
 
+// SAFETY: All variants of `AnyMenuItem` wrap types from the `tray-icon` crate,
+// which guarantees `Send + Sync` safety across all supported platforms (Windows, macOS, Linux).
+// The underlying OS handles (HMENU, NSMenu, GtkMenu) are reference-counted and safe to move
+// between threads for read-only operations. Mutable access is protected by the `Mutex` in `Menu`.
+#[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for AnyMenuItem {}
+#[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Sync for AnyMenuItem {}
 
 #[napi]

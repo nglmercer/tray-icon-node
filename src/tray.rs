@@ -49,7 +49,7 @@ impl From<RawTrayIconEvent> for TrayIconEvent {
                 y: position.y,
                 icon_rect: rect.into(),
                 button: button.into(),
-                button_state: tray_icon::MouseButtonState::Down.into(),
+                button_state: MouseButtonState::Down,
             },
             RawTrayIconEvent::Enter { id, position, rect } => Self {
                 event_type: "enter".to_string(),
@@ -165,29 +165,39 @@ impl TrayIconBuilder {
     }
 
     #[napi]
-    pub fn with_icon(&mut self, icon: &Icon) -> TrayIconBuilder {
+    #[must_use]
+    pub fn with_icon(&mut self, icon: &Icon) -> Self {
         self.icon = Some(icon.inner.clone());
         self.clone()
     }
 
     #[napi]
-    pub fn with_tooltip(&mut self, tooltip: String) -> TrayIconBuilder {
+    #[must_use]
+    pub fn with_tooltip(&mut self, tooltip: String) -> Self {
         self.tooltip = Some(tooltip);
         self.clone()
     }
 
     #[napi]
-    pub fn with_title(&mut self, title: String) -> TrayIconBuilder {
+    #[must_use]
+    pub fn with_title(&mut self, title: String) -> Self {
         self.title = Some(title);
         self.clone()
     }
 
     #[napi]
-    pub fn with_menu(&mut self, menu: &Menu) -> TrayIconBuilder {
+    #[must_use]
+    pub fn with_menu(&mut self, menu: &Menu) -> Self {
         self.menu = Some(menu.inner.clone());
         self.clone()
     }
 
+    /// Builds the tray icon.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying OS fails to create the tray icon
+    /// (e.g., no system tray available, invalid icon data).
     #[napi]
     pub fn build(&self) -> Result<TrayIcon> {
         let mut builder = RawTrayIconBuilder::new();

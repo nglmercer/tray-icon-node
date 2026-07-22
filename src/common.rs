@@ -30,9 +30,9 @@ pub enum MouseButton {
 impl From<tray_icon::MouseButton> for MouseButton {
     fn from(button: tray_icon::MouseButton) -> Self {
         match button {
-            tray_icon::MouseButton::Left => MouseButton::Left,
-            tray_icon::MouseButton::Right => MouseButton::Right,
-            tray_icon::MouseButton::Middle => MouseButton::Middle,
+            tray_icon::MouseButton::Left => Self::Left,
+            tray_icon::MouseButton::Right => Self::Right,
+            tray_icon::MouseButton::Middle => Self::Middle,
         }
     }
 }
@@ -46,8 +46,8 @@ pub enum MouseButtonState {
 impl From<tray_icon::MouseButtonState> for MouseButtonState {
     fn from(state: tray_icon::MouseButtonState) -> Self {
         match state {
-            tray_icon::MouseButtonState::Up => MouseButtonState::Up,
-            tray_icon::MouseButtonState::Down => MouseButtonState::Down,
+            tray_icon::MouseButtonState::Up => Self::Up,
+            tray_icon::MouseButtonState::Down => Self::Down,
         }
     }
 }
