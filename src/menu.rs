@@ -21,6 +21,13 @@ unsafe impl Send for AnyMenuItem {}
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Sync for AnyMenuItem {}
 
+#[inline]
+fn lock_registry(
+    reg: &Mutex<HashMap<String, AnyMenuItem>>,
+) -> std::sync::MutexGuard<'_, HashMap<String, AnyMenuItem>> {
+    reg.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
 #[napi]
 pub struct Menu {
     pub(crate) inner: tray_menu::Menu,
@@ -36,10 +43,17 @@ impl Menu {
             registry: Arc::new(Mutex::new(HashMap::new())),
         }
     }
+
     fn register(&self, id: String, item: AnyMenuItem) {
-        let mut reg = self.registry.lock().unwrap();
+        let mut reg = lock_registry(&self.registry);
         reg.insert(id, item);
     }
+
+    /// Appends a checkable menu item to this menu.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying OS menu operation fails.
     #[napi]
     pub fn append_check_menu_item(&self, item: &CheckMenuItem, id: String) -> Result<()> {
         self.inner
@@ -49,6 +63,12 @@ impl Menu {
         self.register(id, AnyMenuItem::Check(item.0.clone()));
         Ok(())
     }
+
+    /// Appends a standard menu item to this menu.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying OS menu operation fails.
     #[napi]
     pub fn append_menu_item(&self, item: &MenuItem, id: Option<String>) -> Result<()> {
         self.inner
@@ -60,6 +80,12 @@ impl Menu {
         }
         Ok(())
     }
+
+    /// Appends a submenu to this menu.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying OS menu operation fails.
     #[napi]
     pub fn append_submenu(&self, item: &Submenu, id: Option<String>) -> Result<()> {
         self.inner
@@ -72,6 +98,11 @@ impl Menu {
         Ok(())
     }
 
+    /// Appends an icon menu item to this menu.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying OS menu operation fails.
     #[napi]
     pub fn append_icon_menu_item(&self, item: &IconMenuItem, id: String) -> Result<()> {
         self.inner
@@ -82,23 +113,30 @@ impl Menu {
         Ok(())
     }
 
+    /// Appends a predefined menu item (e.g., separator) to this menu.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying OS menu operation fails.
     #[napi]
     pub fn append_predefined_menu_item(&self, item: &PredefinedMenuItem) -> Result<()> {
         self.inner
             .append(&item.0)
             .map_err(|e| Error::from_reason(format!("{e}")))
     }
+
     #[napi]
     pub fn is_checked(&self, id: String) -> bool {
-        let reg = self.registry.lock().unwrap();
+        let reg = lock_registry(&self.registry);
         if let Some(AnyMenuItem::Check(item)) = reg.get(&id) {
             return item.is_checked();
         }
         false
     }
+
     #[napi]
     pub fn toggle_check(&self, id: String) -> bool {
-        let reg = self.registry.lock().unwrap();
+        let reg = lock_registry(&self.registry);
         if let Some(AnyMenuItem::Check(item)) = reg.get(&id) {
             let new_state = !item.is_checked();
             item.set_checked(new_state);
@@ -109,7 +147,7 @@ impl Menu {
 
     #[napi]
     pub fn set_text(&self, id: String, text: String) {
-        let reg = self.registry.lock().unwrap();
+        let reg = lock_registry(&self.registry);
         if let Some(any_item) = reg.get(&id) {
             match any_item {
                 AnyMenuItem::Standard(i) => i.set_text(text),
@@ -163,23 +201,31 @@ impl MenuItemBuilder {
     }
 
     #[napi]
-    pub fn with_text(&mut self, text: String) -> MenuItemBuilder {
+    #[must_use]
+    pub fn with_text(&mut self, text: String) -> Self {
         self.text = text;
         self.clone()
     }
 
     #[napi]
-    pub fn with_enabled(&mut self, enabled: bool) -> MenuItemBuilder {
+    #[must_use]
+    pub fn with_enabled(&mut self, enabled: bool) -> Self {
         self.enabled = enabled;
         self.clone()
     }
 
     #[napi]
-    pub fn with_id(&mut self, id: String) -> MenuItemBuilder {
+    #[must_use]
+    pub fn with_id(&mut self, id: String) -> Self {
         self.id = Some(id);
         self.clone()
     }
 
+    /// Builds the menu item.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying OS fails to create the menu item.
     #[napi]
     pub fn build(&self) -> Result<MenuItem> {
         let item = if let Some(id) = &self.id {
@@ -227,29 +273,38 @@ impl CheckMenuItemBuilder {
     }
 
     #[napi]
-    pub fn with_text(&mut self, text: String) -> CheckMenuItemBuilder {
+    #[must_use]
+    pub fn with_text(&mut self, text: String) -> Self {
         self.text = text;
         self.clone()
     }
 
     #[napi]
-    pub fn with_enabled(&mut self, enabled: bool) -> CheckMenuItemBuilder {
+    #[must_use]
+    pub fn with_enabled(&mut self, enabled: bool) -> Self {
         self.enabled = enabled;
         self.clone()
     }
 
     #[napi]
-    pub fn with_checked(&mut self, checked: bool) -> CheckMenuItemBuilder {
+    #[must_use]
+    pub fn with_checked(&mut self, checked: bool) -> Self {
         self.checked = checked;
         self.clone()
     }
 
     #[napi]
-    pub fn with_id(&mut self, id: String) -> CheckMenuItemBuilder {
+    #[must_use]
+    pub fn with_id(&mut self, id: String) -> Self {
         self.id = Some(id);
         self.clone()
     }
 
+    /// Builds the check menu item.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying OS fails to create the menu item.
     #[napi]
     pub fn build(&self) -> Result<CheckMenuItem> {
         let item = if let Some(id) = &self.id {
@@ -291,6 +346,11 @@ impl CheckMenuItem {
 
 #[napi]
 impl Submenu {
+    /// Appends a standard menu item to this submenu.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying OS menu operation fails.
     #[napi]
     pub fn append_menu_item(&self, item: &MenuItem) -> Result<()> {
         self.0
@@ -298,6 +358,12 @@ impl Submenu {
             .map_err(|e| Error::from_reason(format!("{e}")))
     }
 
+    /// Appends a nested submenu to this submenu.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying OS menu operation fails.
+    #[allow(clippy::use_self)]
     #[napi]
     pub fn append_submenu(&self, item: &Submenu) -> Result<()> {
         self.0
@@ -305,6 +371,11 @@ impl Submenu {
             .map_err(|e| Error::from_reason(format!("{e}")))
     }
 
+    /// Appends a checkable menu item to this submenu.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying OS menu operation fails.
     #[napi]
     pub fn append_check_menu_item(&self, item: &CheckMenuItem) -> Result<()> {
         self.0
@@ -312,6 +383,11 @@ impl Submenu {
             .map_err(|e| Error::from_reason(format!("{e}")))
     }
 
+    /// Appends an icon menu item to this submenu.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying OS menu operation fails.
     #[napi]
     pub fn append_icon_menu_item(&self, item: &IconMenuItem) -> Result<()> {
         self.0
@@ -319,6 +395,11 @@ impl Submenu {
             .map_err(|e| Error::from_reason(format!("{e}")))
     }
 
+    /// Appends a predefined menu item (e.g., separator) to this submenu.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying OS menu operation fails.
     #[napi]
     pub fn append_predefined_menu_item(&self, item: &PredefinedMenuItem) -> Result<()> {
         self.0
@@ -345,17 +426,24 @@ impl SubmenuBuilder {
     }
 
     #[napi]
-    pub fn with_text(&mut self, text: String) -> SubmenuBuilder {
+    #[must_use]
+    pub fn with_text(&mut self, text: String) -> Self {
         self.text = text;
         self.clone()
     }
 
     #[napi]
-    pub fn with_enabled(&mut self, enabled: bool) -> SubmenuBuilder {
+    #[must_use]
+    pub fn with_enabled(&mut self, enabled: bool) -> Self {
         self.enabled = enabled;
         self.clone()
     }
 
+    /// Builds the submenu.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying OS fails to create the submenu.
     #[napi]
     pub fn build(&self) -> Result<Submenu> {
         Ok(Submenu(tray_menu::Submenu::new(&self.text, self.enabled)))
@@ -417,19 +505,26 @@ impl IconMenuItemBuilder {
     }
 
     #[napi]
-    pub fn with_text(&mut self, text: String) -> IconMenuItemBuilder {
+    #[must_use]
+    pub fn with_text(&mut self, text: String) -> Self {
         self.text = text;
         self.clone()
     }
 
     #[napi]
-    pub fn with_enabled(&mut self, enabled: bool) -> IconMenuItemBuilder {
+    #[must_use]
+    pub fn with_enabled(&mut self, enabled: bool) -> Self {
         self.enabled = enabled;
         self.clone()
     }
 
+    /// Sets the icon for this menu item.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the icon data is invalid or the OS fails to create the icon.
     #[napi]
-    pub fn with_icon(&mut self, icon: &Icon) -> Result<IconMenuItemBuilder> {
+    pub fn with_icon(&mut self, icon: &Icon) -> Result<Self> {
         let tray_icon = tray_menu::Icon::from_rgba(icon.rgba.clone(), icon.width, icon.height)
             .map_err(|e| Error::from_reason(format!("Failed to create menu icon: {e}")))?;
         self.icon = Some(tray_icon);
@@ -437,11 +532,17 @@ impl IconMenuItemBuilder {
     }
 
     #[napi]
-    pub fn with_id(&mut self, id: String) -> IconMenuItemBuilder {
+    #[must_use]
+    pub fn with_id(&mut self, id: String) -> Self {
         self.id = Some(id);
         self.clone()
     }
 
+    /// Builds the icon menu item.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if no icon was set or the OS fails to create the menu item.
     #[napi]
     pub fn build(&self) -> Result<IconMenuItem> {
         let icon = self
@@ -521,43 +622,50 @@ impl AboutMetadataBuilder {
     }
 
     #[napi]
-    pub fn with_name(&mut self, name: String) -> AboutMetadataBuilder {
+    #[must_use]
+    pub fn with_name(&mut self, name: String) -> Self {
         self.name = Some(name);
         self.clone()
     }
 
     #[napi]
-    pub fn with_version(&mut self, version: String) -> AboutMetadataBuilder {
+    #[must_use]
+    pub fn with_version(&mut self, version: String) -> Self {
         self.version = Some(version);
         self.clone()
     }
 
     #[napi]
-    pub fn with_copyright(&mut self, copyright: String) -> AboutMetadataBuilder {
+    #[must_use]
+    pub fn with_copyright(&mut self, copyright: String) -> Self {
         self.copyright = Some(copyright);
         self.clone()
     }
 
     #[napi]
-    pub fn with_authors(&mut self, authors: Vec<String>) -> AboutMetadataBuilder {
+    #[must_use]
+    pub fn with_authors(&mut self, authors: Vec<String>) -> Self {
         self.authors = Some(authors);
         self.clone()
     }
 
     #[napi]
-    pub fn with_website(&mut self, website: String) -> AboutMetadataBuilder {
+    #[must_use]
+    pub fn with_website(&mut self, website: String) -> Self {
         self.website = Some(website);
         self.clone()
     }
 
     #[napi]
-    pub fn with_website_label(&mut self, website_label: String) -> AboutMetadataBuilder {
+    #[must_use]
+    pub fn with_website_label(&mut self, website_label: String) -> Self {
         self.website_label = Some(website_label);
         self.clone()
     }
 
     #[napi]
-    pub fn with_comments(&mut self, comments: String) -> AboutMetadataBuilder {
+    #[must_use]
+    pub fn with_comments(&mut self, comments: String) -> Self {
         self.comments = Some(comments);
         self.clone()
     }

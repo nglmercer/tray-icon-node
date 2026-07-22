@@ -11,6 +11,14 @@ pub use icon::*;
 pub use menu::*;
 pub use tray::*;
 
+/// Initializes the native tray subsystem.
+///
+/// On Linux, this initializes GTK. On macOS and Windows, this is a no-op
+/// as those platforms handle initialization automatically.
+///
+/// # Errors
+///
+/// Returns an error if GTK initialization fails (Linux only).
 #[napi]
 pub fn initialize() -> Result<()> {
     #[cfg(target_os = "linux")]
@@ -22,6 +30,13 @@ pub fn initialize() -> Result<()> {
     Ok(())
 }
 
+/// Processes pending UI events for the tray subsystem.
+///
+/// On Linux, this iterates pending GTK events.
+/// On Windows, this processes the thread's message queue via `PeekMessageW`.
+/// On macOS, this is a no-op as `NSApplication` handles its own event loop.
+///
+/// Call this in your event loop to ensure tray interactions are processed.
 #[napi]
 pub fn update() {
     #[cfg(target_os = "linux")]
@@ -38,7 +53,6 @@ pub fn update() {
         };
         unsafe {
             let mut msg: MSG = std::mem::zeroed();
-            // Process all pending messages in the Windows message queue
             while PeekMessageW(&mut msg, 0, 0, 0, PM_REMOVE) != 0 {
                 TranslateMessage(&msg);
                 DispatchMessageW(&msg);
@@ -48,8 +62,6 @@ pub fn update() {
 
     #[cfg(target_os = "macos")]
     {
-        // On macOS, the tray-icon crate uses the standard NSApplication run loop.
-        // No manual event pumping is required as the system handles it automatically.
-        // This function is a no-op on macOS but kept for cross-platform API consistency.
+        // No-op: macOS uses NSApplication's built-in run loop.
     }
 }

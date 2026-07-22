@@ -71,7 +71,9 @@ export function createTrayMenu() {
 }
 
 // Global reference to prevent Garbage Collection
-let tray = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let tray: any = null;
+void tray;
 let isRunning = true;
 
 /**

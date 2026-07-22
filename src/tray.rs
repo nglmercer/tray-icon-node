@@ -109,6 +109,11 @@ pub struct TrayIcon(Option<RawTrayIcon>);
 
 #[napi]
 impl TrayIcon {
+    /// Sets the tray icon image.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the OS fails to update the icon.
     #[napi]
     pub fn set_icon(&mut self, icon: Option<&Icon>) -> Result<()> {
         if let Some(tray) = &self.0 {
@@ -118,14 +123,26 @@ impl TrayIcon {
         Ok(())
     }
 
+    /// Sets the tooltip text shown on hover.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the OS fails to update the tooltip.
     #[napi]
     pub fn set_tooltip(&mut self, tooltip: Option<String>) -> Result<()> {
         if let Some(tray) = &self.0 {
-            let _ = tray.set_tooltip(tooltip);
+            tray.set_tooltip(tooltip)
+                .map_err(|e| Error::from_reason(format!("Failed to set tooltip: {e}")))?;
         }
         Ok(())
     }
 
+    /// Sets the title text shown next to the tray icon (macOS only).
+    ///
+    /// # Errors
+    ///
+    /// This method currently never returns an error but the `Result` type
+    /// is provided for future-proofing and API consistency.
     #[napi]
     pub fn set_title(&mut self, title: Option<String>) -> Result<()> {
         if let Some(tray) = &self.0 {
@@ -134,10 +151,16 @@ impl TrayIcon {
         Ok(())
     }
 
+    /// Sets the visibility of the tray icon.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the OS fails to change visibility.
     #[napi]
     pub fn set_visible(&mut self, visible: bool) -> Result<()> {
         if let Some(tray) = &self.0 {
-            let _ = tray.set_visible(visible);
+            tray.set_visible(visible)
+                .map_err(|e| Error::from_reason(format!("Failed to set visibility: {e}")))?;
         }
         Ok(())
     }
