@@ -145,9 +145,7 @@ impl Menu {
     pub fn toggle_check(&self, id: String) -> bool {
         let reg = lock_registry(&self.registry);
         if let Some(AnyMenuItem::Check(item)) = reg.get(&id) {
-            let new_state = !item.is_checked();
-            item.set_checked(new_state);
-            return new_state;
+            return item.is_checked();
         }
         for item in reg.values() {
             if let AnyMenuItem::Submenu(submenu) = item {
@@ -515,9 +513,7 @@ impl Submenu {
     pub fn toggle_check(&self, id: String) -> bool {
         let reg = lock_registry(&self.registry);
         if let Some(AnyMenuItem::Check(item)) = reg.get(&id) {
-            let new_state = !item.is_checked();
-            item.set_checked(new_state);
-            return new_state;
+            return item.is_checked();
         }
         for item in reg.values() {
             if let AnyMenuItem::Submenu(submenu) = item {

@@ -181,15 +181,16 @@ describeIfNative("Menu Operations", () => {
     expect(menu.isChecked("nonexistent")).toBe(false);
   });
 
-  test("toggleCheck flips state", () => {
+  test("toggleCheck returns current state after platform toggle", () => {
     const item = new CheckMenuItemBuilder()
       .withText("Toggle")
       .withId("toggle-1")
       .withChecked(false)
       .build();
     menu.appendCheckMenuItem(item, "toggle-1");
-    const newState = menu.toggleCheck("toggle-1");
-    expect(newState).toBe(true);
+    expect(menu.isChecked("toggle-1")).toBe(false);
+    item.setChecked(true);
+    expect(menu.toggleCheck("toggle-1")).toBe(true);
     expect(menu.isChecked("toggle-1")).toBe(true);
   });
 
@@ -240,13 +241,13 @@ describeIfNative("Submenu Operations", () => {
     expect(submenu.isChecked("sub-check")).toBe(true);
   });
 
-  test("toggleCheck on submenu item flips state", () => {
+  test("toggleCheck on submenu item returns current state after platform toggle", () => {
     const submenu = new SubmenuBuilder().withText("Sub").build();
     const item = new CheckMenuItemBuilder().withText("Toggle").withChecked(false).build();
     submenu.appendCheckMenuItem(item, "sub-toggle");
     expect(submenu.isChecked("sub-toggle")).toBe(false);
-    const newState = submenu.toggleCheck("sub-toggle");
-    expect(newState).toBe(true);
+    item.setChecked(true);
+    expect(submenu.toggleCheck("sub-toggle")).toBe(true);
     expect(submenu.isChecked("sub-toggle")).toBe(true);
   });
 
